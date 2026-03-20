@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 
 
 # Create your models here.
@@ -12,6 +13,12 @@ class User(AbstractUser):
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.lower()
+        super().save(*args, **kwargs)
+
 
     def __str__(self):
         return self.email
@@ -26,6 +33,9 @@ class Customer(models.Model):
         loyalty_points = models.PositiveBigIntegerField(default=0)
         created_at = models.DateTimeField(auto_now_add=True)
         updated_at = models.DateTimeField(auto_now=True)
+
+        class Meta:
+             ordering = ['-created_at']
 
         def __str__(self):
             return f"customer_{self.user.email}"
@@ -52,6 +62,18 @@ class CustomerAddress(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     address_type = models.CharField(max_length=20, choices=ADDRESS_TYPE_CHOICES)
+
+
+    class Meta:
+        ordering = ['-created_at']
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=['customer', 'is_default'],
+                condition=Q(is_default=True),
+                name='unique_default_address_per_customer'
+            )
+        ]
 
     def __str__(self):
         return f"{self.customer.user.email}_{self.address_id}"
